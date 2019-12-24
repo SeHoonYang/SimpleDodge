@@ -8,144 +8,189 @@
 <div id="start" style="width:320px;top:calc(50% - 80px);left:calc(50% - 160px);position:absolute;background:#3a3bff;border-radius:16px;color:#ffffff;font-size:36px;text-align: center;padding-top:40px;padding-bottom:40px;" onclick="start();">Start</div>
 <canvas id="canvas" style="width:100%;height:100%;"></canvas>
 <script>
-	var context;
-	var lastStamp = 0;
-	var frameTime = 30;
-	var dx = 0, dy = 0;
-	var vx = 0, vy = 0;
-	var pause = true;
-	var circleList = [];
-	const speed = 5;
-	const totalCircle = 500;
-	var startTime = Date.now();
-	const timeDom = document.getElementById("time");
-	
-	const player = {};
-	
-	addEventListener("resize", function() {
-		init();
-	});
-	addEventListener("keyup", function(e) {
-		//left 37 up 38 right 39 down 40
-		if(e.keyCode == 37) {
-			if(dx < 0) dx = 0;
-		}
-		if(e.keyCode == 39) {
-			if(dx > 0) dx = 0;
-		}
-		if(e.keyCode == 38) {
-			if(dy < 0) dy = 0;
-		}
-		if(e.keyCode == 40) {
-			if(dy > 0) dy = 0;
-		}
-	});
-	addEventListener("keydown", function(e) {
-		if(e.keyCode == 37) {
-			dx = -1;
-		}
-		if(e.keyCode == 39) {
-			dx = 1;
-		}
-		if(e.keyCode == 38) {
-			dy = -1;
-		}
-		if(e.keyCode == 40) {
-			dy = 1;
-		}
-	});
-	
-	function addRandomCircles() {
-		for(var i = 0; i < totalCircle; i++) {
-			const colorString = "#" + Math.floor(Math.random() * 0xf0f0f0).toString(16);
-			circleList.push({x:(Math.random() * 0.5 + 0.75) * context.canvas.width , y:Math.random() * context.canvas.height,
-				r:Math.max(10, Math.random() * 20), color:colorString, xa:0, ya:0, xv:Math.random() * 10 - 5, yv:Math.random() * 10 - 5});
-		}
-	}
-	
-	function init() {
-		context = document.getElementById("canvas").getContext('2d');
-		context.canvas.width = window.innerWidth;
-		context.canvas.height = window.innerHeight;
-	}
-	
-	function draw() {
-		if(pause)return;
-		
-		//clear
-		context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-		
-		//draw circles
-		for(const index in circleList) {
-			const circle = circleList[index];
-			
-			// collision detection
-			if(Math.sqrt((circle.x - player.x) * (circle.x - player.x) + (circle.y - player.y) * (circle.y - player.y)) <= circle.r + 5) {
-				pause = true;
-				document.getElementById("start").style.display = "block";
-			}
-			
-			context.beginPath();
-			context.fillStyle = circle.color;
-			context.arc(circle.x, circle.y, circle.r, 0, Math.PI * 2);
-			circle.x = (circle.x + circle.xv + context.canvas.width) % context.canvas.width;
-			circle.y = (circle.y + circle.yv + context.canvas.height) % context.canvas.height;
-			
-			circle.xv += circle.xa;
-			circle.yv += circle.ya;
-			
-			context.fill();
-		}
-		
-		//draw player
-		context.beginPath();
-		context.fillStyle = "#000000";
-		context.arc(player.x, player.y, 5, 0, Math.PI * 2);
-		context.fill();
-		
-		//move player
-		player.x = Math.min(context.canvas.width, Math.max(0, player.x + dx * speed));
-		player.y = Math.min(context.canvas.height, Math.max(0, player.y + dy * speed));
-	}
-	
-	function anim(timestamp) {
-		var progress = timestamp - lastStamp;
-		if (progress > frameTime) {
-			draw();
-		
-			lastStamp = timestamp;
-		}
-		
-		window.requestAnimationFrame(anim);
-		
-		if(!pause) {
-			const remTime = Date.now() - startTime;
-			var millis = String(remTime % 1000);
-			const seconds = (remTime - millis) / 1000;
-			
-			while(millis.length < 3) {
-				millis = "0" + millis;
-			}
-			
-			timeDom.innerHTML = seconds + ":" + millis;
-		}
-	}
-	
-	function start() {
-		circleList = [];
-		startTime = Date.now();
-		
-		init();
-		addRandomCircles();
-		pause = false;
-		
-		player.x = context.canvas.width / 2
-		player.y = context.canvas.height / 2;
-		
-		document.getElementById("start").style.display = "none";
-	}
-	
-	requestAnimationFrame(anim);
+        const canvas = document.getElementById("canvas");
+        const timer = document.getElementById("time");
+        const starter = document.getElementById("start");
+        const context = canvas.getContext("2d");
+        var circles = [];
+        const totalCircles = 300;
+        const player = {x:window.innerWidth / 2, y:window.innerHeight / 2, r:5};
+        const playerSpeed = 5;
+        
+        var dx = 0, dy = 0, dxx = 0, dyy = 0;
+        var lastFrameTime = 0;
+        var pause = true;
+        var startTime;
+        
+        addEventListener('resize', resize);
+        addEventListener('keydown', keydown);
+        addEventListener('keyup', keyup);
+        starter.addEventListener('click', start);
+        
+        function start() {
+            startTime = Date.now();
+            pause = false;
+            starter.style.display = "none";
+            init();
+        }
+        
+        function keydown(e){
+            if(e.keyCode == 37) // left arrow
+                dx = -1;
+            if(e.keyCode == 38) // up arrow
+                dy = -1;
+            if(e.keyCode == 39) // right arrow
+                dxx = 1;
+            if(e.keyCode == 40) // down arrow
+                dyy = 1;
+        }
+    
+        function movePlayer() {
+            player.x = Math.min(context.canvas.width, Math.max(0, player.x + (dx + dxx) * playerSpeed));
+            player.y = Math.min(context.canvas.height, Math.max(0, player.y + (dy + dyy) * playerSpeed));
+        }
+    
+        function keyup(e) {
+            if(e.keyCode == 37) // left arrow
+                dx = 0;
+            if(e.keyCode == 38) // up arrow
+                dy = 0;
+            if(e.keyCode == 39) // right arrow
+                dxx = 0;
+            if(e.keyCode == 40) // down arrow
+                dyy = 0;
+        }
+    
+        function updateTimer() {
+            const elapsedTime = Date.now() - startTime;
+            
+            timer.innerHTML = String(new Number(elapsedTime / 1000).toFixed(3)).replace(".", ":");
+        }
+        
+        function checkCollision() {
+            const temp = [];
+            for(const index in circles) {
+                const circle = circles[index];
+                
+                const d = Math.sqrt( (circle.x - player.x) * (circle.x - player.x) + (circle.y - player.y) * (circle.y - player.y) );
+                if(d <= player.r + circle.r) {
+                    if(player.r < circle.r) {
+                        return true;
+                    }
+                    else {
+                        player.r = Math.sqrt(player.r * player.r + circle.r + circle.r);
+                    }
+                } else {
+                    temp.push(circle);
+                }
+            }
+            circles = temp;
+            
+            return false;
+        }
+        
+        function resize() {
+            windowSizeChange();
+        }
+    
+        function generateRandomColor() {
+            return Math.floor(Math.random() * 0xf0f0f0).toString(16);
+        }
+        
+        function windowSizeChange() {
+            context.canvas.width = window.innerWidth;
+            context.canvas.height = window.innerHeight;
+            
+            draw();
+        }
+    
+        function init(){
+            circles = [];
+            player.x = window.innerWidth / 2;
+            player.y = window.innerHeight / 2;
+            player.r = 5;
+            // add cricles
+            for(let i = 0; i < totalCircles; i++) {
+                circles.push({
+                    x:Math.random() * context.canvas.width * 2 / 3 - context.canvas.width / 3,
+                    y:Math.random() * context.canvas.height,
+                    r:2+Math.random() * 35,
+                    c:generateRandomColor(),
+                    vx:(Math.random() - 0.5) * 5,
+                    vy:(Math.random() - 0.5) * 5
+                });
+            }
+        }
+    
+        function moveCircle() {
+            for(const index in circles) {
+                const circle = circles[index];
+                
+                circle.x += circle.vx;
+                circle.y += circle.vy;
+            }
+        }
+    
+        function draw() {
+            context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+            
+            for(const index in circles) {
+                const circle = circles[index];
+                
+                context.fillStyle = "#" + circle.c;
+                context.beginPath();
+                context.arc(circle.x, circle.y, circle.r, 0, 2 * Math.PI);
+                context.fill();
+            }
+            
+            context.fillStyle = "#000000";
+            context.beginPath();
+            context.arc(player.x, player.y, player.r, 0, 2 * Math.PI);
+            context.fill();
+        }
+    
+        function boundaryCheck() {
+            for(const index in circles) {
+                const circle = circles[index];
+                
+                circle.x = (circle.x + context.canvas.width) % context.canvas.width;
+                circle.y = (circle.y + context.canvas.height) % context.canvas.height;
+            }
+        }
+                                                
+        function gameOver() {
+            pause = true;
+            starter.style.display = "block";
+        }
+    
+        function animation() {
+            const now = Date.now();
+            
+            if(now - lastFrameTime < 33){
+                requestAnimationFrame(animation);
+                return;
+            }
+
+            if(!pause) {
+                moveCircle();
+                movePlayer();
+                boundaryCheck();
+                draw();
+                updateTimer();
+                
+                if(checkCollision()){
+                    gameOver();
+                }
+            }
+
+            lastFrameTime = now;
+            
+            requestAnimationFrame(animation);
+        }
+        
+        requestAnimationFrame(animation);
+    
+        windowSizeChange();
 </script>
 </body>
 </html>
